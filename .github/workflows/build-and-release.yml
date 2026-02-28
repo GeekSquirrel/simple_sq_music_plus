@@ -3,6 +3,7 @@ name: Java CI with Maven and Multi-Arch Release
 on:
   push:
     branches: [ 3.0 ] # 只在提交到3.0分支时触发
+  workflow_dispatch: 
 
 env:
   APP_VERSION: ""
