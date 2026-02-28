@@ -192,6 +192,13 @@ jobs:
           VERSION=$(cat version.txt 2>/dev/null || echo "unknown")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Prepare lowercase image name
+        id: image_name
+        run: |
+          IMAGE_REPO=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          echo "image_name=ghcr.io/${IMAGE_REPO}" >> $GITHUB_OUTPUT
+          echo "IMAGE_NAME=ghcr.io/${IMAGE_REPO}" >> $GITHUB_ENV
       
       - name: Login to GitHub Packages
         uses: docker/login-action@v3
@@ -208,8 +215,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }}-${{ matrix.tag_suffix }}
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest-${{ matrix.tag_suffix }}
+            ${{ steps.image_name.outputs.image_name }}:v${{ env.APP_VERSION }}-${{ matrix.tag_suffix }}
+            ${{ steps.image_name.outputs.image_name }}:latest-${{ matrix.tag_suffix }}
           build-args: |
             JAR_FILE=target/simple_sq_music_plus.jar
           labels: |
@@ -242,6 +249,13 @@ jobs:
           VERSION=$(cat version.txt 2>/dev/null || echo "unknown")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Prepare lowercase image name
+        id: image_name
+        run: |
+          IMAGE_REPO=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          echo "image_name=ghcr.io/${IMAGE_REPO}" >> $GITHUB_OUTPUT
+          echo "IMAGE_NAME=ghcr.io/${IMAGE_REPO}" >> $GITHUB_ENV
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -257,8 +271,8 @@ jobs:
         run: |
           # 强制删除可能存在的旧manifest（忽略错误）
           echo "Cleaning up existing manifests..."
-          docker manifest rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }} 2>/dev/null || true
-          docker manifest rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest 2>/dev/null || true
+          docker manifest rm ${IMAGE_NAME}:v${{ env.APP_VERSION }} 2>/dev/null || true
+          docker manifest rm ${IMAGE_NAME}:latest 2>/dev/null || true
           
           # 等待更长时间确保镜像完全同步
           echo "Waiting for image synchronization..."
@@ -266,44 +280,44 @@ jobs:
           
           # 验证基础镜像是否存在
           echo "Checking if base images exist..."
-          docker pull ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }}-amd64
-          docker pull ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }}-arm64
+          docker pull ${IMAGE_NAME}:v${{ env.APP_VERSION }}-amd64
+          docker pull ${IMAGE_NAME}:v${{ env.APP_VERSION }}-arm64
           
           # 检查拉取的镜像是不是manifest list
           echo "Verifying image types..."
-          AMD64_TYPE=$(docker manifest inspect ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }}-amd64 | jq -r '.mediaType' 2>/dev/null || echo "unknown")
-          ARM64_TYPE=$(docker manifest inspect ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }}-arm64 | jq -r '.mediaType' 2>/dev/null || echo "unknown")
+          AMD64_TYPE=$(docker manifest inspect ${IMAGE_NAME}:v${{ env.APP_VERSION }}-amd64 | jq -r '.mediaType' 2>/dev/null || echo "unknown")
+          ARM64_TYPE=$(docker manifest inspect ${IMAGE_NAME}:v${{ env.APP_VERSION }}-arm64 | jq -r '.mediaType' 2>/dev/null || echo "unknown")
           
           echo "AMD64 image type: $AMD64_TYPE"
           echo "ARM64 image type: $ARM64_TYPE"
           
           # 创建多架构manifest（使用--amend确保覆盖）
           echo "Creating manifest for version v${{ env.APP_VERSION }} with overwrite mode"
-          docker manifest create ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }} \
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }}-amd64 \
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }}-arm64 --amend
+          docker manifest create ${IMAGE_NAME}:v${{ env.APP_VERSION }} \
+            ${IMAGE_NAME}:v${{ env.APP_VERSION }}-amd64 \
+            ${IMAGE_NAME}:v${{ env.APP_VERSION }}-arm64 --amend
           
           # 注解各架构信息
-          docker manifest annotate ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }} \
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }}-amd64 \
+          docker manifest annotate ${IMAGE_NAME}:v${{ env.APP_VERSION }} \
+            ${IMAGE_NAME}:v${{ env.APP_VERSION }}-amd64 \
             --arch amd64 --os linux
           
-          docker manifest annotate ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }} \
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }}-arm64 \
+          docker manifest annotate ${IMAGE_NAME}:v${{ env.APP_VERSION }} \
+            ${IMAGE_NAME}:v${{ env.APP_VERSION }}-arm64 \
             --arch arm64 --os linux
           
           # 强制推送manifest（覆盖模式）
           echo "Force pushing manifest for version v${{ env.APP_VERSION }}"
-          docker manifest push ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ env.APP_VERSION }} --purge
+          docker manifest push ${IMAGE_NAME}:v${{ env.APP_VERSION }} --purge
           
           # 为latest标签创建manifest（使用--amend确保覆盖）
           echo "Creating manifest for latest tag with overwrite mode"
-          docker manifest create ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest \
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest-amd64 \
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest-arm64 --amend
+          docker manifest create ${IMAGE_NAME}:latest \
+            ${IMAGE_NAME}:latest-amd64 \
+            ${IMAGE_NAME}:latest-arm64 --amend
           
           echo "Force pushing manifest for latest tag"
-          docker manifest push ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest --purge
+          docker manifest push ${IMAGE_NAME}:latest --purge
 
   release:
     needs: [build, create-manifest-list]
@@ -328,6 +342,12 @@ jobs:
           echo "webversion=$WEBVERSION" >> $GITHUB_OUTPUT
           echo "APP_VERSION: $VERSION"
           echo "WEB_VERSION: $WEBVERSION"
+
+      - name: Prepare lowercase image name
+        id: image_name
+        run: |
+          IMAGE_REPO=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          echo "image_name=ghcr.io/${IMAGE_REPO}" >> $GITHUB_OUTPUT
       
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -346,9 +366,9 @@ jobs:
             ### Docker Images Available:
             
             **GitHub Packages:**
-            - `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ steps.app_version.outputs.version }}` (Multi-arch manifest)
-            - `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ steps.app_version.outputs.version }}-amd64`
-            - `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:v${{ steps.app_version.outputs.version }}-arm64`
+            - `${{ steps.image_name.outputs.image_name }}:v${{ steps.app_version.outputs.version }}` (Multi-arch manifest)
+            - `${{ steps.image_name.outputs.image_name }}:v${{ steps.app_version.outputs.version }}-amd64`
+            - `${{ steps.image_name.outputs.image_name }}:v${{ steps.app_version.outputs.version }}-arm64`
             
             ### Supported Architectures:
             - **AMD64**: Intel/AMD x86-64 processors
