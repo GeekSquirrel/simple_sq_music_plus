@@ -18,6 +18,24 @@ emby,jellyfin识别请参考如下配置 https://support.emby.media/support/solu
 - 默认账号：admin
 - 默认密码：admin  （登录后设置自行修改）
 
+### Authentik 头部鉴权（后端直连认证）
+当你把本服务放在 Authentik 反向代理后面时，可以开启“HTTP 头部自动登录”，让后端直接信任代理透传的用户信息。
+
+1. 在 `application.yml` 中开启：
+```yaml
+sqmusic:
+  auth:
+    header:
+      enabled: true
+      user-header: X-authentik-username
+      required-header: X-authentik-authenticated
+      required-header-value: "true"
+      login-id-prefix: "authentik:"
+```
+
+2. 在 Authentik 代理侧确保会透传对应头（如 `X-authentik-username`、`X-authentik-authenticated`）。
+3. 建议仅在可信反向代理后使用，不要直接暴露后端端口到公网，避免伪造头部。
+
 
 
 

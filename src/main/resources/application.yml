@@ -84,4 +84,13 @@ sa-token:
 version: 3.0.31
 webversion: 3.0.15
 
+sqmusic:
+  auth:
+    header:
+      enabled: false
+      user-header: X-authentik-username
+      required-header: X-authentik-authenticated
+      required-header-value: "true"
+      login-id-prefix: "authentik:"
+
 
